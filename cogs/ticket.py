@@ -2,18 +2,19 @@ import discord
 from discord.ext import commands
 from discord.ui import View, Button, Modal, TextInput
 import io
-import asyncio
-import config
 
-# Server-specific IDs
+# Server and role IDs
 MAIN_GUILD_ID = 1438946135871062199
-STAFF_ROLE_ID = 1438950739664830534  # Staff role
+STAFF_ROLE_ID = 1438950739664830534
+
+# Names for auto-created channels
 TICKET_CATEGORY_NAME = "Tickets"
 TICKET_PANEL_NAME = "ticket-panel"
 TRANSCRIPT_CHANNEL_NAME = "ticket-transcripts"
 
 # Track active tickets per user
 active_tickets = {}
+
 
 # ----------------- Views -----------------
 
@@ -55,6 +56,7 @@ class TicketIssueModal(Modal, title="Describe Your Issue"):
         category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
         if not category:
             category = await guild.create_category(TICKET_CATEGORY_NAME)
+            print(f"Created category {TICKET_CATEGORY_NAME}")
 
         # Prevent multiple tickets
         if user.id in active_tickets:
@@ -133,6 +135,7 @@ class CloseTicketButton(View):
         log_channel = discord.utils.get(guild.text_channels, name=TRANSCRIPT_CHANNEL_NAME)
         if not log_channel:
             log_channel = await guild.create_text_channel(TRANSCRIPT_CHANNEL_NAME)
+            print(f"Created transcript channel {TRANSCRIPT_CHANNEL_NAME}")
 
         # Create transcript
         transcript_text = f"Transcript for ticket: {channel.name}\n\n"
@@ -159,29 +162,47 @@ class TicketCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        print("TicketCog: on_ready triggered")
         self.bot.add_view(TicketButton())
         self.bot.add_view(ClaimTicketButton())
         self.bot.add_view(CloseTicketButton())
-        await self.ensure_panel_channel()
 
-    async def ensure_panel_channel(self):
-        await self.bot.wait_until_ready()
+        # Fetch guild
         guild = self.bot.get_guild(MAIN_GUILD_ID)
         if not guild:
-            print("Guild not found")
+            print("Guild not found in cache, fetching...")
+            guild = await self.bot.fetch_guild(MAIN_GUILD_ID)
+        if not guild:
+            print("Cannot find guild!")
             return
+        print(f"Found guild: {guild.name}")
 
-        panel_channel = discord.utils.get(guild.text_channels, name=TICKET_PANEL_NAME)
-        if not panel_channel:
-            panel_channel = await guild.create_text_channel(TICKET_PANEL_NAME)
+        # Create or get category
+        category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
+        if not category:
+            category = await guild.create_category(TICKET_CATEGORY_NAME)
+            print(f"Created category: {TICKET_CATEGORY_NAME}")
 
+        # Create or get transcript channel
+        transcript = discord.utils.get(guild.text_channels, name=TRANSCRIPT_CHANNEL_NAME)
+        if not transcript:
+            transcript = await guild.create_text_channel(TRANSCRIPT_CHANNEL_NAME)
+            print(f"Created transcript channel: {TRANSCRIPT_CHANNEL_NAME}")
+
+        # Create or get panel channel
+        panel = discord.utils.get(guild.text_channels, name=TICKET_PANEL_NAME)
+        if not panel:
+            panel = await guild.create_text_channel(TICKET_PANEL_NAME)
+            print(f"Created panel channel: {TICKET_PANEL_NAME}")
+
+        # Send ticket panel
         embed = discord.Embed(
             title="Support Tickets",
             description="Click the button below to open a ticket.",
             color=discord.Color.blue()
         )
-        await panel_channel.send(embed=embed, view=TicketButton())
-        print(f"Ticket panel sent to channel: {panel_channel.name} ({panel_channel.id})")
+        await panel.send(embed=embed, view=TicketButton())
+        print(f"Ticket panel sent to {panel.name} ({panel.id})")
 
     @commands.command(name="ticketpanel")
     @commands.has_permissions(administrator=True)
