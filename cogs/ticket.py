@@ -140,23 +140,28 @@ class TicketCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        self.bot.add_view(TicketButton())
-        self.bot.add_view(ClaimTicketButton())
-        self.bot.add_view(CloseTicketButton())
+@commands.Cog.listener()
+async def on_ready(self):
+    self.bot.add_view(TicketButton())
+    self.bot.add_view(ClaimTicketButton())
+    self.bot.add_view(CloseTicketButton())
 
-        channel = self.bot.get_channel(TICKET_PANEL_CHANNEL_ID)
+    # Send the ticket panel automatically
+    await self.send_ticket_panel()
+
+async def send_ticket_panel(self):
+    await self.bot.wait_until_ready()  # Ensure bot is fully ready
+    try:
+        channel = await self.bot.fetch_channel(TICKET_PANEL_CHANNEL_ID)
         if channel:
             embed = discord.Embed(
                 title="Support Tickets",
                 description="Click the button below to open a ticket.",
                 color=discord.Color.blue()
             )
-            try:
-                await channel.send(embed=embed, view=TicketButton())
-            except:
-                pass
+            await channel.send(embed=embed, view=TicketButton())
+    except Exception as e:
+        print(f"Could not send ticket panel: {e}")
 
     @commands.command(name="ticketpanel")
     @commands.has_permissions(administrator=True)
