@@ -23,7 +23,9 @@ async def main():
         await bot.load_extension("cogs.music")
         await bot.load_extension("cogs.logging_system")
         await bot.load_extension("cogs.autorole")
+        await bot.load_extension("cogs.ticket")
         await bot.start(config.TOKEN)
 
 # Run bot
 asyncio.run(main())
+
